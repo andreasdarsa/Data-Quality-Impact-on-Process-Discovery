@@ -1,0 +1,8 @@
+/experiments/process_discovery/results/models/pnml/
+/experiments/process_discovery/results/figures/model_visualizations/
+/data/degraded/accuracy/
+/data/degraded/completeness/
+/data/degraded/consistency/
+/data/degraded/timeliness/
+/data/prepared/bpi2019_baseline_1000_cases.csv
+/data/raw/BPI_Challenge_2019.xes
