@@ -48,7 +48,7 @@ This is especially important for the timeliness degradation scenarios. Timelines
 
 ---
 
-## Project structure
+## Repository structure
 
 ```text
 experiments/process_discovery/
@@ -78,7 +78,15 @@ experiments/process_discovery/
 └── README.md
 ```
 
-The data folders are stored at project root level:
+The `src/` directory contains the experiment code.
+
+The `results/` directory is used for generated outputs. Some result files or subfolders may be ignored by Git, depending on the `.gitignore` configuration.
+
+---
+
+## Local data and generated artifacts
+
+The following paths are expected to exist locally when running the experiment, but they are not necessarily tracked by Git:
 
 ```text
 data/
@@ -95,6 +103,23 @@ data/
     ├── consistency/
     └── timeliness/
 ```
+
+The following outputs are also generated locally:
+
+```text
+experiments/process_discovery/results/models/pnml/
+experiments/process_discovery/results/figures/model_visualizations/
+```
+
+These files and folders are typically excluded from version control because they can be large and can be regenerated from the experiment scripts.
+
+If the repository is cloned on a new machine, the raw BPI 2019 `.xes` file must be placed manually in:
+
+```text
+data/raw/BPI_Challenge_2019.xes
+```
+
+Then the prepared and degraded datasets can be regenerated using the commands below.
 
 ---
 
@@ -182,7 +207,7 @@ Results and plots
 
 ## Step 1 - Prepare BPI 2019 baseline subset
 
-The raw log is stored as:
+The raw log must be available locally as:
 
 ```text
 data/raw/BPI_Challenge_2019.xes
@@ -197,7 +222,7 @@ python experiments/process_discovery/src/prepare_bpi2019.py `
   --max-cases 1000
 ```
 
-Expected output:
+Expected local output:
 
 ```text
 data/prepared/bpi2019_baseline_1000_cases.csv
@@ -261,7 +286,7 @@ python experiments/process_discovery/src/generate_degraded_logs.py `
   --repetitions 5
 ```
 
-This creates degraded logs for:
+This creates local degraded logs for:
 
 ```text
 accuracy      10%, 20%, 30%
@@ -272,7 +297,7 @@ timeliness    10%, 20%, 30%
 
 Each scenario is repeated multiple times.
 
-Example output files:
+Example generated files:
 
 ```text
 data/degraded/accuracy/accuracy_10_r1.csv
@@ -281,7 +306,7 @@ data/degraded/consistency/consistency_30_r5.csv
 data/degraded/timeliness/timeliness_10_r1.csv
 ```
 
-A manifest is also created:
+A manifest is also generated locally:
 
 ```text
 data/degraded/degradation_manifest.csv
@@ -398,7 +423,7 @@ python experiments/process_discovery/src/plots.py `
   --output-dir experiments/process_discovery/results/figures
 ```
 
-Expected outputs include plots such as:
+Expected generated plots include:
 
 ```text
 fitness_by_accuracy.png
@@ -457,6 +482,27 @@ activities_after
 status
 error
 ```
+
+---
+
+## Git-ignored files and folders
+
+The following paths are intentionally ignored by Git in this project:
+
+```text
+/experiments/process_discovery/results/models/pnml/
+/experiments/process_discovery/results/figures/model_visualizations/
+/data/degraded/accuracy/
+/data/degraded/completeness/
+/data/degraded/consistency/
+/data/degraded/timeliness/
+/data/prepared/bpi2019_baseline_1000_cases.csv
+/data/raw/BPI_Challenge_2019.xes
+```
+
+This means that a fresh clone of the repository will not include the raw BPI 2019 log, the prepared baseline CSV, the degraded logs, PNML models, or model visualization images.
+
+These artifacts must either be regenerated locally or copied manually if needed.
 
 ---
 
