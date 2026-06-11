@@ -4,5 +4,14 @@
 /data/degraded/completeness/
 /data/degraded/consistency/
 /data/degraded/timeliness/
-/data/prepared/bpi2019_baseline_1000_cases.csv
+/data/prepared/
 /data/raw/BPI_Challenge_2019.xes
+/experiments/process_discovery/results/figures/bpi2019_1000
+/experiments/process_discovery/results/figures/bpi2019_2000
+/data/degraded/bpi2019_1000
+/data/degraded/bpi2019_2000
+/experiments/process_discovery/results/metrics/bpi2019_1000
+/experiments/process_discovery/results/metrics/bpi2019_2000
+/experiments/process_discovery/results/metrics/model_visualizations
+**/__pycache__/
+**.xml

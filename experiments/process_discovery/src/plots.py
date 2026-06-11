@@ -12,7 +12,7 @@ from config import (
 
 
 QUALITY_METRICS = [
-    "fitness",
+    "fitness_reconstructed",
     "precision",
     "generalization",
     "simplicity",
@@ -20,13 +20,9 @@ QUALITY_METRICS = [
 ]
 
 STRUCTURAL_METRICS = [
-    "places",
-    "transitions",
-    "visible_transitions",
-    "hidden_transitions",
     "arcs",
-    "unique_visible_transition_labels",
-    "duplicate_visible_transition_labels",
+    "transitions",
+    "places",
 ]
 
 
@@ -87,6 +83,16 @@ def add_baseline_to_each_dimension(
     )
 
 
+def pretty_metric_name(metric: str) -> str:
+    """
+    :param metric:
+    :return: readable form for each metric, fitness_reconstructed is renamed to "Fitness"
+    """
+    if metric == "fitness_reconstructed":
+        return "Fitness"
+    return metric.replace("_", " ").title()
+
+
 def aggregate_results(df: pd.DataFrame) -> pd.DataFrame:
     """
     Aggregates repetitions by mean.
@@ -143,9 +149,11 @@ def plot_metric_for_dimension(
             label=miner_name,
         )
 
-    plt.title(f"{metric.replace('_', ' ').title()} by degradation level - {dimension}")
+    metric_label = pretty_metric_name(metric)
+
+    plt.title(f"{metric_label} by degradation level - {dimension}")
     plt.xlabel("Degradation level (%)")
-    plt.ylabel(metric.replace("_", " ").title())
+    plt.ylabel(metric_label)
     plt.xticks([0, 10, 20, 30])
     plt.grid(True, alpha=0.3)
     plt.legend()
