@@ -249,6 +249,7 @@ def parse_str_list(values: list[str] | None, default: list[str]) -> list[str]:
     return values
 
 
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -260,8 +261,8 @@ def main():
 
     parser.add_argument(
         "--output-dir",
-        default=DEGRADED_DIR,
-        help="Directory where degraded logs will be saved.",
+        default=f"{DEGRADED_DIR}/bpi2019",
+        help="Dataset-specific directory for degraded logs.",
     )
 
     parser.add_argument(

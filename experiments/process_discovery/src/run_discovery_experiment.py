@@ -11,16 +11,29 @@ from config import (
     COMPLETE_TIMESTAMP_COL,
     MINERS,
     RESULTS_DIR,
-    METRICS_DIR,
-    PNML_DIR,
-    FIGURES_DIR,
 )
 
 from discovery import discover_model
 from evaluation import evaluate_model
 
+def get_output_paths(dataset_name: str) -> dict[str, Path]:
+    """
+    Returns isolated output paths for each dataset.
+    Existing BPI 2019 paths remain unchanged.
+    """
+    if dataset_name.startswith("bpi2019"):
+        base_dir = Path(RESULTS_DIR)
+    else:
+        base_dir = Path(RESULTS_DIR) / dataset_name
 
-def ensure_directories() -> None:
+    return {
+        "base": base_dir,
+        "metrics": base_dir / "metrics",
+        "pnml": base_dir / "models" / "pnml",
+        "figures": base_dir / "figures",
+    }
+
+#
     """
     Creates all output directories if they do not already exist.
     """
@@ -113,6 +126,7 @@ def save_model_outputs(
     initial_marking,
     final_marking,
     model_name: str,
+    paths: dict[str, Path],
 ) -> Dict[str, Any]:
     """
     Saves PNML and PNG visualization for a discovered Petri net.
@@ -128,8 +142,13 @@ def save_model_outputs(
         "pnml_error": None,
     }
 
-    pnml_path = Path(PNML_DIR) / f"{model_name}.pnml"
-    visualization_path = Path(FIGURES_DIR) / "model_visualizations" / f"{model_name}.png"
+    pnml_path = paths["pnml"] / f"{model_name}.pnml"
+
+    visualization_path = (
+        paths["figures"]
+        / "model_visualizations"
+        / f"{model_name}.png"
+    )
 
     try:
         pm4py.write_pnml(
@@ -191,7 +210,15 @@ def run_discovery_experiment(
     """
     Runs Alpha Miner, Heuristics Miner and Inductive Miner on one event log.
     """
-    ensure_directories()
+    paths = get_output_paths(dataset_name)
+
+    for path in paths.values():
+        path.mkdir(parents=True, exist_ok=True)
+
+    (paths["figures"] / "model_visualizations").mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     miners = miners or MINERS
 
@@ -239,6 +266,7 @@ def run_discovery_experiment(
                 initial_marking=initial_marking,
                 final_marking=final_marking,
                 model_name=model_name,
+                paths=paths,
             )
 
             row.update(metrics)
@@ -252,7 +280,7 @@ def run_discovery_experiment(
 
         results.append(row)
 
-    output_csv = Path(METRICS_DIR) / "discovery_results.csv"
+    output_csv = paths["metrics"] / "discovery_results.csv"
     append_results(results, str(output_csv))
 
     results_df = pd.DataFrame(results)

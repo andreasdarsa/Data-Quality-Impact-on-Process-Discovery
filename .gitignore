@@ -1,9 +1,7 @@
 /experiments/process_discovery/results/models/pnml/
 /experiments/process_discovery/results/figures/model_visualizations/
-/data/degraded/accuracy/
-/data/degraded/completeness/
-/data/degraded/consistency/
-/data/degraded/timeliness/
+/data/degraded/bpi2019
+/data/degraded/bpi2020_travel_permit
 /data/prepared/
 /data/raw/BPI_Challenge_2019.xes
 /experiments/process_discovery/results/figures/bpi2019_1000
@@ -15,3 +13,6 @@
 /experiments/process_discovery/results/metrics/model_visualizations
 **/__pycache__/
 **.xml
+**/venv/
+/data/raw/
+/experiments/process_discovery/results/bpi2020_travel_permit_1000/
