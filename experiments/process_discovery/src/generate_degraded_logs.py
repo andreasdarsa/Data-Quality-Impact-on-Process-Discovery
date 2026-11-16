@@ -45,7 +45,13 @@ def load_baseline_log(input_path: str) -> pd.DataFrame:
     """
     Loads the prepared baseline CSV.
     """
-    df = pd.read_csv(input_path)
+    # keep_default_na=False: case ids such as "NA" (Sepsis) must not become NaN.
+    df = pd.read_csv(
+        input_path,
+        dtype={CASE_ID_COL: str},
+        keep_default_na=False,
+        na_values=[""],
+    )
 
     validate_input_log(df)
 

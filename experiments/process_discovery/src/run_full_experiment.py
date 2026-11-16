@@ -1,5 +1,8 @@
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 import argparse
+
+import pandas as pd
 
 from config import (
     PREPARED_DIR,
@@ -11,7 +14,11 @@ from config import (
     METRICS_DIR,
 )
 
-from run_discovery_experiment import run_discovery_experiment
+from run_discovery_experiment import (
+    append_results,
+    get_output_paths,
+    run_discovery_experiment,
+)
 
 
 def parse_str_list(values, default):
@@ -37,6 +44,24 @@ def clear_previous_results() -> None:
     if results_path.exists():
         results_path.unlink()
         print(f"Deleted previous results: {results_path}")
+
+
+def get_completed_runs(dataset_name: str) -> set[tuple[str, int, int]]:
+    """
+    Returns (dimension, level, repetition) of logs that already have results
+    in the dataset's discovery_results.csv.
+    """
+    results_path = get_output_paths(dataset_name)["metrics"] / "discovery_results.csv"
+
+    if not results_path.exists():
+        return set()
+
+    results = pd.read_csv(results_path)
+
+    return {
+        (row.dimension, int(row.degradation_level), int(row.repetition))
+        for row in results.itertuples()
+    }
 
 
 def get_degraded_log_path(
@@ -81,27 +106,33 @@ def run_degraded_experiments(
     repetitions: int,
     miners: list[str],
     skip_missing: bool = True,
+    workers: int = 1,
+    completed: set[tuple[str, int, int]] | None = None,
 ) -> None:
     """
     Runs the discovery experiment for all degraded logs.
+
+    With workers > 1, the degraded logs are processed in parallel. Results are
+    still appended in the same order as in a sequential run.
+
+    Logs whose (dimension, level, repetition) is in completed are skipped.
     """
+    completed = completed or set()
+    tasks = []
+
     for dimension in dimensions:
         for level in levels:
             for repetition in range(1, repetitions + 1):
+                if (dimension, level, repetition) in completed:
+                    print(f"Already done, skipping: {dimension} {level}% r{repetition}")
+                    continue
+
                 input_path = get_degraded_log_path(
                     degraded_dir=degraded_dir,
                     dimension=dimension,
                     level=level,
                     repetition=repetition,
                 )
-
-                print("\n==============================")
-                print("Running degraded experiment")
-                print(f"Dimension: {dimension}")
-                print(f"Level: {level}%")
-                print(f"Repetition: {repetition}")
-                print(f"Input: {input_path}")
-                print("==============================")
 
                 if not input_path.exists():
                     message = f"Missing degraded log: {input_path}"
@@ -112,14 +143,52 @@ def run_degraded_experiments(
 
                     raise FileNotFoundError(message)
 
-                run_discovery_experiment(
-                    input_path=str(input_path),
-                    dataset_name=dataset_name,
-                    dimension=dimension,
-                    degradation_level=level,
-                    repetition=repetition,
-                    miners=miners,
+                tasks.append(
+                    {
+                        "input_path": str(input_path),
+                        "dataset_name": dataset_name,
+                        "dimension": dimension,
+                        "degradation_level": level,
+                        "repetition": repetition,
+                        "miners": miners,
+                    }
                 )
+
+    if workers <= 1:
+        for task in tasks:
+            print("\n==============================")
+            print("Running degraded experiment")
+            print(f"Dimension: {task['dimension']}")
+            print(f"Level: {task['degradation_level']}%")
+            print(f"Repetition: {task['repetition']}")
+            print(f"Input: {task['input_path']}")
+            print("==============================")
+
+            run_discovery_experiment(**task)
+
+        return
+
+    output_csv = get_output_paths(dataset_name)["metrics"] / "discovery_results.csv"
+
+    print(f"\nRunning {len(tasks)} degraded logs with {workers} workers...")
+
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        futures = [
+            executor.submit(run_discovery_experiment, **task, save_results=False)
+            for task in tasks
+        ]
+
+        # Collect in submission order, so that the CSV has the same row order
+        # as a sequential run.
+        for task, future in zip(tasks, futures):
+            results_df = future.result()
+            append_results(results_df.to_dict("records"), str(output_csv))
+
+            print(
+                f"Saved: {task['dimension']} "
+                f"{task['degradation_level']}% "
+                f"r{task['repetition']}"
+            )
 
 
 def run_full_experiment(
@@ -133,6 +202,8 @@ def run_full_experiment(
     include_baseline: bool = True,
     clear_results: bool = False,
     skip_missing: bool = True,
+    workers: int = 1,
+    resume: bool = False,
 ) -> None:
     """
     Runs the complete process discovery experiment.
@@ -141,9 +212,21 @@ def run_full_experiment(
         baseline × miners
         +
         dimensions × levels × repetitions × miners
+
+    With resume=True, logs that already have results in the dataset's
+    discovery_results.csv are not run again.
     """
     if clear_results:
         clear_previous_results()
+
+    completed = set()
+
+    if resume:
+        completed = get_completed_runs(dataset_name)
+        print(f"Resuming: {len(completed)} logs already have results.")
+
+        if ("baseline", 0, 0) in completed:
+            include_baseline = False
 
     if include_baseline:
         run_baseline(
@@ -160,10 +243,12 @@ def run_full_experiment(
         repetitions=repetitions,
         miners=miners,
         skip_missing=skip_missing,
+        workers=workers,
+        completed=completed,
     )
 
     print("\nFull experiment finished.")
-    print(f"Results file: {Path(METRICS_DIR) / 'discovery_results.csv'}")
+    print(f"Results file: {get_output_paths(dataset_name)['metrics'] / 'discovery_results.csv'}")
 
 
 def main():
@@ -233,6 +318,19 @@ def main():
         help="Raise error if a degraded log is missing.",
     )
 
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of degraded logs to process in parallel.",
+    )
+
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip logs that already have results in discovery_results.csv.",
+    )
+
     args = parser.parse_args()
 
     dimensions = parse_str_list(
@@ -261,6 +359,8 @@ def main():
         include_baseline=not args.skip_baseline,
         clear_results=args.clear_results,
         skip_missing=not args.fail_on_missing,
+        workers=args.workers,
+        resume=args.resume,
     )
 
 
