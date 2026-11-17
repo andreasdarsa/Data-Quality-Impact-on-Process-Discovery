@@ -532,6 +532,83 @@ Inductive Miner
 
 ---
 
+## Extended experiments on other event logs
+
+To check whether the BPI 2019 findings generalize, the same experiment was repeated on further public event logs, with 1000 and 2000 sampled cases:
+
+| Dataset name | Source log | Notes |
+| --- | --- | --- |
+| `bpi2020_domestic_declarations_1000/2000` | BPI Challenge 2020, Domestic Declarations | |
+| `bpi2017_1000/2000` | BPI Challenge 2017 | `--lifecycle complete` |
+| `bpi2012_1000/2000` | BPI Challenge 2012 | `--lifecycle complete` |
+| `sepsis_1000` | Sepsis Cases | The log has only 1050 cases, so there is no 2000-case run |
+
+Setup: 4 dimensions × 3 levels × 3 repetitions × 3 miners + baseline = 111 evaluations per run.
+
+`prepare_event_log.py` is a generic version of `prepare_bpi2020.py`. The optional `--lifecycle complete` keeps only completion events, for logs that record several lifecycle transitions per activity (BPI 2012, BPI 2017). The optional `--streaming` reads only case id, activity, timestamp and lifecycle with a streaming XML parser, for logs that are too large to load with `pm4py.read_xes` (e.g. the 1.9 GB BPI 2018 log). For the logs above it produces exactly the same prepared CSV as the default reader.
+
+Example for BPI 2017 with 2000 cases:
+
+```powershell
+$env:PYTHONHASHSEED = "0"
+
+python experiments/process_discovery/src/prepare_event_log.py `
+  --input data/raw/bpic2017.xes `
+  --output data/prepared/bpi2017_baseline_2000_cases.csv `
+  --max-cases 2000 `
+  --random-state 42 `
+  --lifecycle complete
+
+python experiments/process_discovery/src/generate_degraded_logs.py `
+  --input data/prepared/bpi2017_baseline_2000_cases.csv `
+  --output-dir data/degraded/bpi2017_2000 `
+  --dimensions accuracy completeness consistency timeliness `
+  --levels 10 20 30 `
+  --repetitions 3 `
+  --random-state 42
+
+python experiments/process_discovery/src/run_full_experiment.py `
+  --baseline data/prepared/bpi2017_baseline_2000_cases.csv `
+  --degraded-dir data/degraded/bpi2017_2000 `
+  --dataset-name bpi2017_2000 `
+  --dimensions accuracy completeness consistency timeliness `
+  --levels 10 20 30 `
+  --repetitions 3 `
+  --fail-on-missing `
+  --workers 4
+
+python experiments/process_discovery/src/add_reconstructed_fitness.py `
+  --input experiments/process_discovery/results/bpi2017_2000/metrics/discovery_results.csv
+```
+
+Results are stored in `experiments/process_discovery/results/<dataset name>/`.
+
+### Evaluating against the original log
+
+By default, each model is evaluated against the degraded log it was discovered from. To also measure how well it represents the real (non-degraded) process, the saved PNML models can be evaluated against the original baseline log:
+
+```powershell
+python experiments/process_discovery/src/evaluate_against_original.py `
+  --dataset-name bpi2017_2000 `
+  --original data/prepared/bpi2017_baseline_2000_cases.csv `
+  --workers 4
+
+python experiments/process_discovery/src/add_reconstructed_fitness.py `
+  --input experiments/process_discovery/results/bpi2017_2000/metrics/discovery_results_vs_original.csv
+```
+
+The models are not discovered again, and the same evaluation code is used, so the only difference from `discovery_results.csv` is the log the models are evaluated on. The output is `discovery_results_vs_original.csv` in the same metrics folder. An interrupted run can be restarted with the same command; models that already have a result are skipped.
+
+For BPI 2019, the models of the original 1000-case run are not stored in the repository. They were rediscovered from the same baseline and degradation settings under the dataset name `rerun_bpi2019_1000`, so that the committed BPI 2019 results are not touched.
+
+Notes:
+
+- `--workers N` processes N degraded logs in parallel. The results are the same as in a sequential run and are appended in the same order.
+- `PYTHONHASHSEED=0` makes the results exactly reproducible. Without it, PM4Py's token replay on Heuristics Miner nets depends on Python's hash randomization, and precision/generalization can differ by up to about 0.01 between otherwise identical runs.
+- Do not use `--clear-results` for these datasets: it deletes `results/metrics/discovery_results.csv`, which holds the BPI 2019 results.
+
+---
+
 ## Notes on scalability
 
 The BPI Challenge 2019 log is large and complex. Process discovery and replay-based evaluation can become computationally expensive, especially when running many repetitions across multiple degradation scenarios.

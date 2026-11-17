@@ -52,7 +52,13 @@ def load_process_log(csv_path: str):
     For BPI Challenge 2019 we only use complete_timestamp.
     We do NOT create or use artificial start timestamps.
     """
-    df = pd.read_csv(csv_path)
+    # keep_default_na=False: case ids such as "NA" (Sepsis) must not become NaN.
+    df = pd.read_csv(
+        csv_path,
+        dtype={CASE_ID_COL: str},
+        keep_default_na=False,
+        na_values=[""],
+    )
 
     required_cols = [
         CASE_ID_COL,
@@ -206,9 +212,13 @@ def run_discovery_experiment(
     degradation_level: int,
     repetition: int,
     miners: list[str] | None = None,
+    save_results: bool = True,
 ) -> pd.DataFrame:
     """
     Runs Alpha Miner, Heuristics Miner and Inductive Miner on one event log.
+
+    If save_results is False, the rows are only returned and the caller is
+    responsible for appending them (used by parallel runs).
     """
     paths = get_output_paths(dataset_name)
 
@@ -280,13 +290,15 @@ def run_discovery_experiment(
 
         results.append(row)
 
-    output_csv = paths["metrics"] / "discovery_results.csv"
-    append_results(results, str(output_csv))
-
     results_df = pd.DataFrame(results)
 
     print("\nExperiment finished.")
-    print(f"Results saved to: {output_csv}")
+
+    if save_results:
+        output_csv = paths["metrics"] / "discovery_results.csv"
+        append_results(results, str(output_csv))
+        print(f"Results saved to: {output_csv}")
+
     print(results_df)
 
     return results_df
