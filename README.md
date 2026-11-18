@@ -1,174 +1,232 @@
-# Process Discovery Experiment - BPI Challenge 2019
+# The Impact of Data Quality on Process Discovery
 
-This module implements the second experimental part of the thesis:
+## 1. Project Overview
 
-> How does data quality affect process discovery?
+This repository contains the experimental implementation of the process discovery part of a thesis investigating how data quality degradation affects the quality and structure of discovered business process models.
 
-The experiment uses the **BPI Challenge 2019** event log and evaluates how controlled data quality degradation affects discovered process models.
+The main objective is to examine how different types and levels of event log degradation influence the Petri nets discovered by process mining algorithms.
 
-The main focus is on the following data quality dimensions:
+The experiments focus on four data quality dimensions:
 
-- Accuracy
-- Completeness
-- Consistency
-- Timeliness
+- **Accuracy**
+- **Completeness**
+- **Consistency**
+- **Timeliness**
 
-The discovered models are evaluated using:
+Discovered process models are evaluated using four quality metrics:
 
 - Fitness
 - Precision
 - Generalization
 - Simplicity
-- Structural Petri net metrics:
-  - Places
-  - Transitions
-  - Visible transitions
-  - Hidden transitions
-  - Arcs
+
+In addition, structural properties of the discovered Petri nets are measured, including the number of places, transitions, visible and hidden transitions, and arcs.
+
+The repository also includes extended experiments on multiple public event logs and an analysis comparing model evaluation against degraded logs and the original, non-degraded reference log.
 
 ---
 
-## Important note about timestamps
+## 2. Experimental Methodology
 
-The BPI Challenge 2019 event log contains only a completion timestamp:
-
-```text
-time:timestamp
-```
-
-In this project, it is mapped to:
+The general experimental workflow consists of the following stages:
 
 ```text
-complete_timestamp
+Original XES Event Log
+        |
+        v
+Event Log Preparation
+        |
+        v
+Baseline Case Sampling
+        |
+        v
+Controlled Data Quality Degradation
+        |
+        v
+Process Discovery
+        |
+        v
+Petri Net Evaluation
+        |
+        v
+Structural Analysis
+        |
+        v
+Aggregation and Visualization
 ```
 
-No artificial `start_timestamp` is created or used.
+### 2.1 Event Log Preparation
 
-This is especially important for the timeliness degradation scenarios. Timeliness-related degradation is applied only to `complete_timestamp`.
+Original XES event logs are converted into a common tabular representation containing:
+
+- `case_id`
+- `activity`
+- `complete_timestamp`
+- `event_index`
+
+Depending on the source log, additional preprocessing may be applied, such as filtering lifecycle transitions.
+
+A reproducible subset of cases is selected using a fixed random seed.
+
+### 2.2 Data Quality Degradation
+
+Controlled degradation is applied to the prepared baseline event log.
+
+Each degradation scenario is defined by:
+
+- A data quality dimension.
+- A degradation level.
+- A repetition identifier.
+
+The original baseline remains unchanged. Each degraded log is saved separately and accompanied by metadata describing the applied transformation.
+
+### 2.3 Process Discovery
+
+Three process discovery algorithms are evaluated:
+
+- Alpha Miner
+- Heuristics Miner
+- Inductive Miner
+
+Each algorithm discovers a Petri net from the corresponding baseline or degraded event log.
+
+The resulting models are exported in PNML format. Model visualizations can also be generated.
+
+### 2.4 Model Evaluation
+
+Each discovered Petri net is evaluated against the event log from which it was discovered.
+
+An additional evaluation procedure is available for comparing the discovered models against the original, non-degraded baseline log.
+
+This distinction is important: evaluating a model against its own degraded discovery log measures how well it represents that degraded log, whereas evaluation against the original log examines how well it represents the reference process.
+
+The additional evaluation does not rediscover the models. It loads the previously exported PNML files and evaluates them against the original event log.
 
 ---
 
-## Repository structure
+## 3. Data Quality Dimensions
 
-```text
-experiments/process_discovery/
-│
-├── src/
-│   ├── config.py
-│   ├── prepare_bpi2019.py
-│   ├── discovery.py
-│   ├── evaluation.py
-│   ├── degradation.py
-│   ├── generate_degraded_logs.py
-│   ├── run_discovery_experiment.py
-│   ├── run_full_experiment.py
-│   └── plots.py
-│
-├── results/
-│   ├── metrics/
-│   │   ├── discovery_results.csv
-│   │   └── aggregated_results.csv
-│   │
-│   ├── models/
-│   │   └── pnml/
-│   │
-│   └── figures/
-│       └── model_visualizations/
-│
-└── README.md
-```
+Four degradation dimensions are implemented.
 
-The `src/` directory contains the experiment code.
+| Dimension | Description | Examples |
+|---|---|---|
+| Accuracy | Incorrectly recorded information | Wrong activity labels, incorrect case assignment |
+| Completeness | Missing information | Event removal |
+| Consistency | Inconsistent representation of information | Activity label variations, duplicate events |
+| Timeliness | Incorrect event recording times | Timestamp shifts and timestamp swaps within a case |
 
-The `results/` directory is used for generated outputs. Some result files or subfolders may be ignored by Git, depending on the `.gitignore` configuration.
+The exact degradation operators are implemented in `experiments/process_discovery/src/degradation.py`.
+
+### 3.1 Accuracy
+
+Accuracy degradation simulates incorrectly recorded event information.
+
+Examples include incorrect activity labels and incorrect case assignments.
+
+Timestamp-related errors are handled separately under timeliness.
+
+### 3.2 Completeness
+
+Completeness degradation simulates missing event information by removing events from the original log.
+
+### 3.3 Consistency
+
+Consistency degradation introduces inconsistencies in the representation of event information.
+
+Examples include variations in activity labels and duplicate events.
+
+### 3.4 Timeliness
+
+Timeliness degradation simulates problems in the temporal recording of events.
+
+The implemented mechanisms include timestamp shifts and timestamp swaps within the same case.
+
+**Timestamp handling:** The BPI Challenge 2019 event log provides only a completion timestamp (`time:timestamp`). It is mapped to `complete_timestamp`. No artificial `start_timestamp` is created or used. Timeliness degradation therefore operates exclusively on `complete_timestamp`.
 
 ---
 
-## Local data and generated artifacts
+## 4. Datasets
 
-The following paths are expected to exist locally when running the experiment, but they are not necessarily tracked by Git:
+The repository includes experiments on five public event log sources.
 
-```text
-data/
-│
-├── raw/
-│   └── BPI_Challenge_2019.xes
-│
-├── prepared/
-│   └── bpi2019_baseline_1000_cases.csv
-│
-└── degraded/
-    ├── accuracy/
-    ├── completeness/
-    ├── consistency/
-    └── timeliness/
-```
+### 4.1 BPI Challenge 2019
 
-The following outputs are also generated locally:
+BPI Challenge 2019 is the primary dataset used in the initial process discovery experiment.
 
-```text
-experiments/process_discovery/results/models/pnml/
-experiments/process_discovery/results/figures/model_visualizations/
-```
+The prepared baseline subsets contain 1,000 or 2,000 cases, depending on the experiment.
 
-These files and folders are typically excluded from version control because they can be large and can be regenerated from the experiment scripts.
-
-If the repository is cloned on a new machine, the raw BPI 2019 `.xes` file must be placed manually in:
+The original XES file is expected at:
 
 ```text
 data/raw/BPI_Challenge_2019.xes
 ```
 
-Then the prepared and degraded datasets can be regenerated using the commands below.
+The dedicated preparation script is:
+
+```text
+experiments/process_discovery/src/prepare_bpi2019.py
+```
+
+### 4.2 BPI Challenge 2020 — Domestic Declarations
+
+The extended experiments include the Domestic Declarations event log from BPI Challenge 2020.
+
+Prepared subsets of 1,000 and 2,000 cases are used.
+
+### 4.3 BPI Challenge 2017
+
+The BPI Challenge 2017 event log is included in the extended experiments.
+
+Only events with the `complete` lifecycle transition are retained during preparation:
+
+```text
+--lifecycle complete
+```
+
+This ensures that the prepared event log focuses on completed activities.
+
+### 4.4 BPI Challenge 2012
+
+The BPI Challenge 2012 event log is also included in the extended experiments.
+
+As with BPI 2017, the preparation procedure can retain only completed lifecycle transitions.
+
+### 4.5 Sepsis Cases
+
+The Sepsis Cases event log is used as an additional validation dataset.
+
+The available log contains approximately 1,050 cases, so only the 1,000-case experiment is included.
+
+### Dataset overview
+
+| Dataset | Sample sizes |
+|---|---|
+| BPI Challenge 2019 | 1,000 and 2,000 |
+| BPI Challenge 2020 — Domestic Declarations | 1,000 and 2,000 |
+| BPI Challenge 2017 | 1,000 and 2,000 |
+| BPI Challenge 2012 | 1,000 and 2,000 |
+| Sepsis Cases | 1,000 |
+
+The raw XES files are not included in the repository and must be obtained separately.
 
 ---
 
-## Environment setup
+## 5. Experimental Configuration
 
-From the root folder of the project:
-
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-python -m pip install --upgrade pip
-pip install pm4py pandas numpy matplotlib tqdm openpyxl graphviz
-```
-
-Optional:
-
-```powershell
-pip freeze > requirements.txt
-```
-
----
-
-## Configuration
-
-The main experiment parameters are defined in:
+The main configuration is defined in:
 
 ```text
 experiments/process_discovery/src/config.py
 ```
 
-Current default setup:
+Default settings for the primary BPI 2019 experiment:
 
 ```python
-RAW_LOG_PATH = "data/raw/BPI_Challenge_2019.xes"
-
-PREPARED_DIR = "data/prepared"
-DEGRADED_DIR = "data/degraded"
-
-RESULTS_DIR = "experiments/process_discovery/results"
-METRICS_DIR = "experiments/process_discovery/results/metrics"
-PNML_DIR = "experiments/process_discovery/results/models/pnml"
-FIGURES_DIR = "experiments/process_discovery/results/figures"
-
-CASE_ID_COL = "case_id"
-ACTIVITY_COL = "activity"
-COMPLETE_TIMESTAMP_COL = "complete_timestamp"
-
-MINERS = ["alpha", "heuristics", "inductive"]
+MINERS = [
+    "alpha",
+    "heuristics",
+    "inductive",
+]
 
 DEGRADATION_DIMENSIONS = [
     "accuracy",
@@ -183,37 +241,176 @@ N_REPETITIONS = 5
 RANDOM_STATE = 42
 ```
 
----
+### 5.1 Primary BPI 2019 experiment
 
-## Experimental pipeline
+The full experiment includes:
 
-The complete pipeline is:
+| Scenario | Configurations |
+|---|---:|
+| Baseline | 1 |
+| 4 dimensions × 3 levels × 5 repetitions | 60 |
+| **Total log configurations** | **61** |
+
+Each configuration is evaluated using all three miners.
+
+Therefore:
 
 ```text
-Raw BPI 2019 XES log
-        ↓
-Prepared baseline CSV subset
-        ↓
-Controlled degradation scenarios
-        ↓
-Process discovery
-        ↓
-Model evaluation
-        ↓
-Results and plots
+Baseline:
+1 × 3 = 3 evaluations
+
+Degraded:
+4 × 3 × 5 × 3 = 180 evaluations
+
+Total:
+183 evaluations
+```
+
+### 5.2 Extended experiments
+
+The extended experiments use:
+
+- Four degradation dimensions.
+- Three degradation levels: 10%, 20%, and 30%.
+- Three repetitions.
+- Three process discovery algorithms.
+- One baseline evaluation per miner.
+
+This results in:
+
+```text
+4 × 3 × 3 × 3 + 3 = 111 evaluations
+```
+
+per dataset and sample-size configuration.
+
+The extended experiments cover four datasets at both 1,000 and 2,000 cases, and the Sepsis dataset at 1,000 cases.
+
+---
+
+## 6. Evaluation Metrics
+
+### 6.1 Process Model Quality
+
+The discovered Petri nets are evaluated using the following metrics:
+
+| Metric | Purpose |
+|---|---|
+| Fitness | Measures how well the model can reproduce the observed behavior in the event log |
+| Precision | Measures how much behavior allowed by the model is supported by the event log |
+| Generalization | Estimates the model's ability to represent behavior beyond the observed traces |
+| Simplicity | Measures the simplicity of the discovered model |
+
+An aggregate score is also recorded when provided by the PM4Py evaluation procedure.
+
+### 6.2 Structural Petri Net Metrics
+
+The following structural properties are extracted:
+
+- Number of places.
+- Number of transitions.
+- Number of visible transitions.
+- Number of hidden transitions.
+- Number of unique visible transition labels.
+- Number of duplicate visible transition labels.
+- Number of arcs.
+
+These measurements help investigate whether data degradation leads to changes in the size and structural complexity of discovered models.
+
+### 6.3 Evaluation Against the Original Log
+
+The extended evaluation procedure compares two perspectives:
+
+1. **Observed evaluation:** Each model is evaluated against the degraded log from which it was discovered.
+2. **Reference evaluation:** The same model is evaluated against the original, non-degraded baseline log.
+
+This allows the analysis to distinguish between a model that fits the degraded observations and a model that continues to represent the original process.
+
+The comparison is implemented in:
+
+```text
+experiments/process_discovery/src/dual_log_analysis.py
+experiments/process_discovery/src/evaluate_against_original.py
 ```
 
 ---
 
-## Step 1 - Prepare BPI 2019 baseline subset
+## 7. Repository Structure
 
-The raw log must be available locally as:
+The main implementation is located in:
+
+```text
+experiments/process_discovery/
+```
+
+Its structure is:
+
+```text
+experiments/
+└── process_discovery/
+    ├── src/
+    │   ├── config.py
+    │   ├── prepare_bpi2019.py
+    │   ├── prepare_bpi2020.py
+    │   ├── prepare_event_log.py
+    │   ├── degradation.py
+    │   ├── generate_degraded_logs.py
+    │   ├── discovery.py
+    │   ├── evaluation.py
+    │   ├── run_discovery_experiment.py
+    │   ├── run_full_experiment.py
+    │   ├── evaluate_against_original.py
+    │   ├── add_reconstructed_fitness.py
+    │   ├── degradation_mechanisms.py
+    │   ├── dual_log_analysis.py
+    │   ├── paper_figures.py
+    │   └── plots.py
+    │
+    └── results/
+        ├── metrics/
+        ├── models/
+        └── figures/
+```
+
+Additional notebooks are available for inspecting and summarizing experimental results.
+
+---
+
+## 8. Installation
+
+The experiments were developed using Python 3.11.
+
+From the repository root, create and activate a virtual environment:
+
+```powershell
+py -3.11 -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+Install the required dependencies:
+
+```bash
+python -m pip install --upgrade pip
+pip install pm4py pandas numpy matplotlib tqdm openpyxl graphviz
+```
+
+Graphviz may also require a separate system-level installation, depending on the operating system.
+
+---
+
+## 9. Execution
+
+All commands below are executed from the repository root.
+
+### 9.1 Prepare the BPI 2019 baseline
+
+Place the original XES file at:
 
 ```text
 data/raw/BPI_Challenge_2019.xes
 ```
 
-To create a baseline subset of 1000 cases:
+Generate a prepared subset of 1,000 cases:
 
 ```powershell
 python experiments/process_discovery/src/prepare_bpi2019.py `
@@ -222,188 +419,35 @@ python experiments/process_discovery/src/prepare_bpi2019.py `
   --max-cases 1000
 ```
 
-Expected local output:
-
-```text
-data/prepared/bpi2019_baseline_1000_cases.csv
-```
-
-Minimum expected columns:
-
-```text
-case_id
-activity
-complete_timestamp
-event_index
-```
-
----
-
-## Step 2 - Run discovery on baseline log
-
-To test the pipeline with only the Inductive Miner:
-
-```powershell
-python experiments/process_discovery/src/run_discovery_experiment.py `
-  --input data/prepared/bpi2019_baseline_1000_cases.csv `
-  --dataset-name bpi2019_1000 `
-  --dimension baseline `
-  --level 0 `
-  --repetition 0 `
-  --miners inductive
-```
-
-To run all miners on the baseline log:
-
-```powershell
-python experiments/process_discovery/src/run_discovery_experiment.py `
-  --input data/prepared/bpi2019_baseline_1000_cases.csv `
-  --dataset-name bpi2019_1000 `
-  --dimension baseline `
-  --level 0 `
-  --repetition 0
-```
-
-This runs:
-
-```text
-Alpha Miner
-Heuristics Miner
-Inductive Miner
-```
-
----
-
-## Step 3 - Generate degraded logs
-
-To generate all degraded logs for all dimensions, levels and repetitions:
+### 9.2 Generate degraded logs
 
 ```powershell
 python experiments/process_discovery/src/generate_degraded_logs.py `
   --input data/prepared/bpi2019_baseline_1000_cases.csv `
-  --output-dir data/degraded `
+  --output-dir data/degraded/bpi2019_1000 `
+  --dimensions accuracy completeness consistency timeliness `
   --levels 10 20 30 `
   --repetitions 5
 ```
 
-This creates local degraded logs for:
+The script generates the degraded logs and a `degradation_manifest.csv` containing metadata for each generated configuration.
 
-```text
-accuracy      10%, 20%, 30%
-completeness  10%, 20%, 30%
-consistency   10%, 20%, 30%
-timeliness    10%, 20%, 30%
-```
-
-Each scenario is repeated multiple times.
-
-Example generated files:
-
-```text
-data/degraded/accuracy/accuracy_10_r1.csv
-data/degraded/completeness/completeness_20_r3.csv
-data/degraded/consistency/consistency_30_r5.csv
-data/degraded/timeliness/timeliness_10_r1.csv
-```
-
-A manifest is also generated locally:
-
-```text
-data/degraded/degradation_manifest.csv
-```
-
----
-
-## Degradation scenarios
-
-### Accuracy
-
-Simulates wrongly recorded values.
-
-Examples:
-
-```text
-wrong activity labels
-wrong case assignment
-```
-
-Timestamp errors are not included here, because timestamp-related errors are handled under timeliness.
-
-### Completeness
-
-Simulates missing events.
-
-Events are removed from the log.
-
-### Consistency
-
-Simulates inconsistent representations of the same information.
-
-Examples:
-
-```text
-Record Goods Receipt
-record goods receipt
-Record_Goods_Receipt
-Record Goods Receipt__variant
-```
-
-Duplicate events may also be inserted.
-
-### Timeliness
-
-Simulates problems related to the recording time of events.
-
-Only `complete_timestamp` is altered.
-
-Examples:
-
-```text
-timestamp shifts
-timestamp swaps within the same case
-```
-
-No `start_timestamp` is created or modified.
-
----
-
-## Step 4 - Run full experiment
-
-To run the full experiment with all miners:
+### 9.3 Run the full process discovery experiment
 
 ```powershell
 python experiments/process_discovery/src/run_full_experiment.py `
   --baseline data/prepared/bpi2019_baseline_1000_cases.csv `
-  --degraded-dir data/degraded `
+  --degraded-dir data/degraded/bpi2019_1000 `
   --dataset-name bpi2019_1000 `
   --clear-results
 ```
 
-This produces:
-
-```text
-experiments/process_discovery/results/metrics/discovery_results.csv
-```
-
-The full matrix is:
-
-```text
-Baseline:
-1 baseline log × 3 miners = 3 evaluations
-
-Degraded:
-4 dimensions × 3 levels × 5 repetitions × 3 miners = 180 evaluations
-
-Total:
-183 evaluations
-```
-
-For a smaller test run using only the Inductive Miner:
+To execute a smaller test run using only the Inductive Miner:
 
 ```powershell
 python experiments/process_discovery/src/run_full_experiment.py `
   --baseline data/prepared/bpi2019_baseline_1000_cases.csv `
-  --degraded-dir data/degraded `
+  --degraded-dir data/degraded/bpi2019_1000 `
   --dataset-name bpi2019_1000 `
   --miners inductive `
   --levels 10 `
@@ -411,11 +455,78 @@ python experiments/process_discovery/src/run_full_experiment.py `
   --clear-results
 ```
 
+### 9.4 Run the extended experiments
+
+For other event logs, use the generic preparation script:
+
+```powershell
+python experiments/process_discovery/src/prepare_event_log.py `
+  --input data/raw/bpic2017.xes `
+  --output data/prepared/bpi2017_baseline_2000_cases.csv `
+  --max-cases 2000 `
+  --random-state 42 `
+  --lifecycle complete
+```
+
+For logs that are too large to load into memory using PM4Py, the optional `--streaming` flag enables a streaming XML parser that reads only the required event attributes.
+
+Generate degraded logs:
+
+```powershell
+python experiments/process_discovery/src/generate_degraded_logs.py `
+  --input data/prepared/bpi2017_baseline_2000_cases.csv `
+  --output-dir data/degraded/bpi2017_2000 `
+  --dimensions accuracy completeness consistency timeliness `
+  --levels 10 20 30 `
+  --repetitions 3 `
+  --random-state 42
+```
+
+Run the experiment:
+
+```powershell
+python experiments/process_discovery/src/run_full_experiment.py `
+  --baseline data/prepared/bpi2017_baseline_2000_cases.csv `
+  --degraded-dir data/degraded/bpi2017_2000 `
+  --dataset-name bpi2017_2000 `
+  --dimensions accuracy completeness consistency timeliness `
+  --levels 10 20 30 `
+  --repetitions 3 `
+  --fail-on-missing `
+  --workers 4
+```
+
+The same workflow can be applied to the other supported event logs by changing the input, output and dataset names.
+
+### 9.5 Evaluate discovered models against the original log
+
+After the discovery experiment has generated and saved the PNML models:
+
+```powershell
+python experiments/process_discovery/src/evaluate_against_original.py `
+  --dataset-name bpi2017_2000 `
+  --original data/prepared/bpi2017_baseline_2000_cases.csv `
+  --workers 4
+```
+
+To calculate reconstructed fitness:
+
+```powershell
+python experiments/process_discovery/src/add_reconstructed_fitness.py `
+  --input experiments/process_discovery/results/bpi2017_2000/metrics/discovery_results_vs_original.csv
+```
+
+The evaluation can be resumed after interruption. Models that already have a result are skipped.
+
+**Important:** Do not use `--clear-results` when running additional datasets if doing so would remove previously stored results. In particular, the original BPI 2019 results are stored in the default results directory.
+
 ---
 
-## Step 5 - Generate plots
+## 10. Analysis and Visualization
 
-After the experiment finishes:
+### 10.1 Standard experiment plots
+
+After completing the discovery experiments, generate plots using:
 
 ```powershell
 python experiments/process_discovery/src/plots.py `
@@ -423,38 +534,68 @@ python experiments/process_discovery/src/plots.py `
   --output-dir experiments/process_discovery/results/figures
 ```
 
-Expected generated plots include:
+The plotting script produces visual comparisons of the process model quality and structural metrics across degradation scenarios.
+
+### 10.2 Degradation mechanism analysis
+
+The `degradation_mechanisms.py` script examines the effect of degradation directly on the event logs, independently of process discovery.
+
+It measures:
+
+- Change in the number of distinct activities.
+- Change in the number of distinct directly-follows relations.
+- Share of novel directly-follows relations.
+- Share of lost directly-follows relations.
+- Change in the number of trace variants.
+- Change in mean trace length.
+- Share of cases whose activity sequence changed.
+
+### 10.3 Dual-log analysis and paper figures
+
+The extended analysis compares observed and reference evaluation results.
+
+The `paper_figures.py` script generates publication-oriented figures, LaTeX tables and summary statistics from the analysis outputs.
+
+Its expected inputs include:
 
 ```text
-fitness_by_accuracy.png
-precision_by_accuracy.png
-generalization_by_accuracy.png
-simplicity_by_accuracy.png
-arcs_by_timeliness.png
-transitions_by_consistency.png
+results/dual_log_analysis/cells.csv
+results/dual_log_analysis/instances.csv
+results/paper/degradation_mechanisms.csv
 ```
 
-An aggregated results file is also produced:
+The generated outputs include:
 
 ```text
-experiments/process_discovery/results/metrics/aggregated_results.csv
+results/paper/
+├── fig_dual_evaluation_30.pdf
+├── fig_gap_by_level.pdf
+├── tab_mechanisms.tex
+├── tab_complexity.tex
+└── paper_stats.txt
 ```
 
 ---
 
-## Main results file
+## 11. Results and Generated Artifacts
 
-The main output file is:
+The experiment generates several types of outputs.
+
+### Metrics
+
+The main results file is:
 
 ```text
 experiments/process_discovery/results/metrics/discovery_results.csv
 ```
 
-It contains one row per:
+For dataset-specific extended experiments, results are stored under:
 
 ```text
-dataset × dimension × degradation level × repetition × miner
+experiments/process_discovery/results/<dataset_name>/metrics/
 ```
+
+The results contain one row per evaluated model and configuration.
 
 Important columns include:
 
@@ -468,6 +609,7 @@ fitness
 precision
 generalization
 simplicity
+average_score
 places
 transitions
 visible_transitions
@@ -483,162 +625,91 @@ status
 error
 ```
 
----
+### Petri net models
 
-## Git-ignored files and folders
-
-The following paths are intentionally ignored by Git in this project:
+Discovered models are exported in PNML format under:
 
 ```text
-/experiments/process_discovery/results/models/pnml/
-/experiments/process_discovery/results/figures/model_visualizations/
-/data/degraded/accuracy/
-/data/degraded/completeness/
-/data/degraded/consistency/
-/data/degraded/timeliness/
-/data/prepared/bpi2019_baseline_1000_cases.csv
-/data/raw/BPI_Challenge_2019.xes
+experiments/process_discovery/results/models/pnml/
 ```
 
-This means that a fresh clone of the repository will not include the raw BPI 2019 log, the prepared baseline CSV, the degraded logs, PNML models, or model visualization images.
+Dataset-specific experiments use their corresponding results directory.
 
-These artifacts must either be regenerated locally or copied manually if needed.
+### Figures
 
----
-
-## Current experimental status
-
-The baseline experiment with 1000 cases has been successfully executed.
-
-The following setup completed successfully:
+Generated visualizations are stored under:
 
 ```text
-dataset: bpi2019_1000
-dimension: baseline
-level: 0
-miner: inductive
-status: ok
+experiments/process_discovery/results/figures/
 ```
 
-PNML model export and visualization export were also successful.
+### Prepared and degraded data
 
-The full experiment for 1000 cases has also been executed for all three miners:
+Local data artifacts are stored under:
 
 ```text
-Alpha Miner
-Heuristics Miner
-Inductive Miner
+data/
+├── raw/
+├── prepared/
+└── degraded/
 ```
+
+Raw event logs, prepared subsets, degraded logs, PNML models and generated figures may be excluded from version control because of their size.
+
+They can be regenerated using the corresponding scripts, provided that the original XES files are available.
 
 ---
 
-## Extended experiments on other event logs
+## 12. Reproducibility Notes
 
-To check whether the BPI 2019 findings generalize, the same experiment was repeated on further public event logs, with 1000 and 2000 sampled cases:
+The experiments use fixed random seeds for reproducible case sampling and degradation generation.
 
-| Dataset name | Source log | Notes |
-| --- | --- | --- |
-| `bpi2020_domestic_declarations_1000/2000` | BPI Challenge 2020, Domestic Declarations | |
-| `bpi2017_1000/2000` | BPI Challenge 2017 | `--lifecycle complete` |
-| `bpi2012_1000/2000` | BPI Challenge 2012 | `--lifecycle complete` |
-| `sepsis_1000` | Sepsis Cases | The log has only 1050 cases, so there is no 2000-case run |
-
-Setup: 4 dimensions × 3 levels × 3 repetitions × 3 miners + baseline = 111 evaluations per run.
-
-`prepare_event_log.py` is a generic version of `prepare_bpi2020.py`. The optional `--lifecycle complete` keeps only completion events, for logs that record several lifecycle transitions per activity (BPI 2012, BPI 2017). The optional `--streaming` reads only case id, activity, timestamp and lifecycle with a streaming XML parser, for logs that are too large to load with `pm4py.read_xes` (e.g. the 1.9 GB BPI 2018 log). For the logs above it produces exactly the same prepared CSV as the default reader.
-
-Example for BPI 2017 with 2000 cases:
+For the extended experiments, setting the following environment variable is recommended:
 
 ```powershell
 $env:PYTHONHASHSEED = "0"
-
-python experiments/process_discovery/src/prepare_event_log.py `
-  --input data/raw/bpic2017.xes `
-  --output data/prepared/bpi2017_baseline_2000_cases.csv `
-  --max-cases 2000 `
-  --random-state 42 `
-  --lifecycle complete
-
-python experiments/process_discovery/src/generate_degraded_logs.py `
-  --input data/prepared/bpi2017_baseline_2000_cases.csv `
-  --output-dir data/degraded/bpi2017_2000 `
-  --dimensions accuracy completeness consistency timeliness `
-  --levels 10 20 30 `
-  --repetitions 3 `
-  --random-state 42
-
-python experiments/process_discovery/src/run_full_experiment.py `
-  --baseline data/prepared/bpi2017_baseline_2000_cases.csv `
-  --degraded-dir data/degraded/bpi2017_2000 `
-  --dataset-name bpi2017_2000 `
-  --dimensions accuracy completeness consistency timeliness `
-  --levels 10 20 30 `
-  --repetitions 3 `
-  --fail-on-missing `
-  --workers 4
-
-python experiments/process_discovery/src/add_reconstructed_fitness.py `
-  --input experiments/process_discovery/results/bpi2017_2000/metrics/discovery_results.csv
 ```
 
-Results are stored in `experiments/process_discovery/results/<dataset name>/`.
+This is particularly relevant for Heuristics Miner evaluation, where PM4Py token replay can depend on Python hash randomization. Without a fixed hash seed, precision and generalization may differ slightly between otherwise identical runs.
 
-### Evaluating against the original log
+The `--workers` option allows degraded logs to be processed in parallel. The results are intended to be equivalent to sequential execution.
 
-By default, each model is evaluated against the degraded log it was discovered from. To also measure how well it represents the real (non-degraded) process, the saved PNML models can be evaluated against the original baseline log:
-
-```powershell
-python experiments/process_discovery/src/evaluate_against_original.py `
-  --dataset-name bpi2017_2000 `
-  --original data/prepared/bpi2017_baseline_2000_cases.csv `
-  --workers 4
-
-python experiments/process_discovery/src/add_reconstructed_fitness.py `
-  --input experiments/process_discovery/results/bpi2017_2000/metrics/discovery_results_vs_original.csv
-```
-
-The models are not discovered again, and the same evaluation code is used, so the only difference from `discovery_results.csv` is the log the models are evaluated on. The output is `discovery_results_vs_original.csv` in the same metrics folder. An interrupted run can be restarted with the same command; models that already have a result are skipped.
-
-For BPI 2019, the models of the original 1000-case run are not stored in the repository. They were rediscovered from the same baseline and degradation settings under the dataset name `rerun_bpi2019_1000`, so that the committed BPI 2019 results are not touched.
-
-Notes:
-
-- `--workers N` processes N degraded logs in parallel. The results are the same as in a sequential run and are appended in the same order.
-- `PYTHONHASHSEED=0` makes the results exactly reproducible. Without it, PM4Py's token replay on Heuristics Miner nets depends on Python's hash randomization, and precision/generalization can differ by up to about 0.01 between otherwise identical runs.
-- Do not use `--clear-results` for these datasets: it deletes `results/metrics/discovery_results.csv`, which holds the BPI 2019 results.
+For interrupted experiments, the same command can be used to resume processing where supported by the experiment runner.
 
 ---
 
-## Notes on scalability
+## 13. Limitations
 
-The BPI Challenge 2019 log is large and complex. Process discovery and replay-based evaluation can become computationally expensive, especially when running many repetitions across multiple degradation scenarios.
+The experimental findings should be interpreted in light of the following limitations:
 
-For this reason, the main experiment may use:
-
-```text
-1000 cases
-10%, 20%, 30% degradation levels
-3 or 5 repetitions
-```
-
-Larger subsets, such as 5000 cases, may be used only if computationally feasible or as supplementary validation.
-
-A reasonable strategy is:
-
-```text
-Main experiment:
-1000 cases, all degradation dimensions, all miners
-
-Optional extended experiment:
-5000 cases, selected miners or selected degradation scenarios
-```
+- The experiments use sampled subsets of the original event logs rather than necessarily processing every available case.
+- The degradation operators represent controlled approximations of data quality problems and may not cover every type of recording imperfection found in operational systems.
+- Different event logs have different activity vocabularies, lifecycle conventions, sizes and process characteristics.
+- The availability of event attributes and lifecycle information varies across datasets.
+- The evaluation metrics capture different aspects of model quality and should not be interpreted independently of the event log used for evaluation.
+- Process discovery algorithms may respond differently to changes in event frequency, trace variants and directly-follows relations.
 
 ---
 
-## Methodological summary
+## 14. Project Scope
 
-This experiment investigates how controlled degradation of event log quality affects process discovery results.
+This repository focuses exclusively on the **process discovery** component of the broader study of data quality in business process event logs.
 
-A prepared subset of the BPI Challenge 2019 event log is used as the baseline. Then, controlled degradation is applied to four data quality dimensions: accuracy, completeness, consistency and timeliness. For each degraded log, process discovery is performed using Alpha Miner, Heuristics Miner and Inductive Miner. The resulting Petri nets are evaluated using fitness, precision, generalization and simplicity, along with structural metrics such as the number of places, transitions and arcs.
+A separate repository implements the anomaly detection experiments:
 
-The goal is to quantify how different types and levels of data quality degradation influence the quality and complexity of discovered process models.
+[Data Quality Impact on Business Process Anomaly Detection](https://github.com/andreasdarsa/Data-Quality-Impact-on-Business-Process-Anomaly-Detection)
+
+The two repositories address complementary aspects of the same research problem:
+
+- Process discovery: how data quality degradation affects the discovered process models.
+- Anomaly detection: how data quality degradation affects the identification of anomalous process executions.
+
+They are maintained independently to preserve the distinction between their datasets, experimental configurations and evaluation pipelines.
+
+---
+
+## Data Sources
+
+The event logs used in this project originate from publicly available process mining benchmarks and datasets, including the BPI Challenges and the Sepsis Cases event log.
+
+Users are responsible for obtaining the original event logs from their respective sources and complying with the applicable data access and usage conditions.
